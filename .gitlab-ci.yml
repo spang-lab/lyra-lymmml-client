@@ -1,0 +1,32 @@
+
+stages:
+    - build
+    - rebuild
+
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - export VERSION=`grep 'version' package.json | cut -d ':' -f 2 | sed -e 's/[", ]//g'`
+    - git clone https://gitlab+deploy-token-3:GxgWzo2MB6CfHxyyNj-y@gitlab.spang-lab.de/containers/lyra-library.git --branch "v$VERSION" lib/lyra-library
+    - docker build -t "$CI_REGISTRY_IMAGE/webpack-builder" .
+    - docker push "$CI_REGISTRY_IMAGE/webpack-builder"
+  only:
+    - master
+
+
+rebuild:
+  stage: rebuild
+  script:
+  - export VERSION=`grep 'version' package.json | cut -d ':' -f 2 | sed -e 's/[", ]//g'`
+  - echo "$VERSION"
+  - docker run -v "$(pwd)/dist:/usr/src/app/dist" "$CI_REGISTRY_IMAGE/webpack-builder"
+  - docker build --tag $CI_REGISTRY_IMAGE:$VERSION --tag $CI_REGISTRY_IMAGE:latest ./dist
+  - docker push $CI_REGISTRY_IMAGE:$VERSION
+  - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - master
+
